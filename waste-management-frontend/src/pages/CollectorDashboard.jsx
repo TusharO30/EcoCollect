@@ -13,12 +13,14 @@ import {
 const CollectorDashboard = () => {
   // --- STATE ---
   const [view, setView] = useState("jobs");
-  const [collectorStatus, setCollectorStatus] = useState("offline"); 
-  const [leaveDate, setLeaveDate] = useState(""); 
   
-  // New State for tracking when the truck was last emptied
+  // ✅ FIX 1: Initialize State from LocalStorage so it remembers on Refresh
+  const [collectorStatus, setCollectorStatus] = useState(() => {
+    return localStorage.getItem("collectorStatus") || "offline";
+  });
+  
+  const [leaveDate, setLeaveDate] = useState(""); 
   const [lastUnloadTime, setLastUnloadTime] = useState(null);
-
   const [allAssignments, setAllAssignments] = useState([]);
   const [notification, setNotification] = useState(null);
   
@@ -51,7 +53,11 @@ const CollectorDashboard = () => {
           const res = await axios.get(`${API_BASE_URL}/api/auth/get-user/${collectorId}`);
           const data = res.data;
           
-          if (data.collectorStatus) setCollectorStatus(data.collectorStatus);
+          // Sync DB data with Local State if available
+          if (data.collectorStatus) {
+             setCollectorStatus(data.collectorStatus);
+             localStorage.setItem("collectorStatus", data.collectorStatus);
+          }
           if (data.leaveDate) setLeaveDate(data.leaveDate);
           if (data.lastUnloadTime) setLastUnloadTime(new Date(data.lastUnloadTime));
         } catch (err) {
@@ -63,23 +69,25 @@ const CollectorDashboard = () => {
       fetchAssignments();
 
       const interval = setInterval(() => {
-        if (collectorStatus === 'online') fetchAssignments(true);
+        // Only fetch assignments if we are locally online
+        const currentLocalStatus = localStorage.getItem("collectorStatus");
+        if (currentLocalStatus === 'online') fetchAssignments(true);
       }, 5000);
 
       return () => clearInterval(interval);
     }
-  }, [collectorId, navigate, collectorStatus]);
+    // ✅ FIX 2: Removed collectorStatus from dependencies to prevent loops
+  }, [collectorId, navigate]); 
 
   // Effect to re-calculate stats whenever lastUnloadTime changes
   useEffect(() => {
     if (allAssignments.length > 0) {
       calculateStats(allAssignments);
     }
-  }, [lastUnloadTime, allAssignments]); // Added dependency
+  }, [lastUnloadTime, allAssignments]); 
 
   const fetchAssignments = async (isBackgroundUpdate = false) => {
     try {
-      // ✅ UPDATED: Uses API_BASE_URL
       const res = await axios.get(`${API_BASE_URL}/api/requests/all`);
       
       const myJobs = res.data.filter(req => {
@@ -123,10 +131,7 @@ const CollectorDashboard = () => {
     completed.forEach(r => {
       const w = parseFloat(String(r.amount).replace(/[^\d.]/g, ''));
       if(!isNaN(w)) {
-        // Always add to lifetime stats
         totalLifetimeWeight += w;
-
-        // Check if this job was done AFTER the last unload time
         const jobDate = new Date(r.updatedAt || r.pickupDate);
         if (!lastUnloadTime || jobDate > lastUnloadTime) {
           currentTruckLoad += w;
@@ -139,7 +144,6 @@ const CollectorDashboard = () => {
       completedToday: today.length,
       totalWeight: totalLifetimeWeight,
       earnings: totalLifetimeWeight * 0.5,
-      // Clamp load at max to prevent UI breaking
       truckLoad: currentTruckLoad > 500 ? 500 : currentTruckLoad 
     }));
   };
@@ -147,23 +151,27 @@ const CollectorDashboard = () => {
   // --- ACTIONS ---
   
   const updateStatus = async (newStatus, date = "") => {
-    // Optimistic Update
+    // 1. Optimistic Update (Immediate UI Change)
     setCollectorStatus(newStatus);
     setLeaveDate(date);
     setStatusModal(false);
 
-    // ✅ SAVE TO DB
+    // 2. ✅ Save to LocalStorage immediately (So refresh works)
+    localStorage.setItem("collectorStatus", newStatus);
+    if(date) localStorage.setItem(`leaveDate_${collectorId}`, date);
+
+    // 3. Save to Database (So Admin sees it)
     try {
       await axios.put(`${API_BASE_URL}/api/auth/update-status/${collectorId}`, {
         status: newStatus,
         leaveDate: date
       });
     } catch (err) {
-      console.error("Failed to sync status");
+      console.error("Failed to sync status with server");
+      // Optional: Revert UI if server fails
     }
   };
 
-  // NEW: Handle Unload Action
   const handleUnload = async () => {
     if (stats.truckLoad <= 0) {
       alert("Truck is already empty!");
@@ -172,15 +180,11 @@ const CollectorDashboard = () => {
     
     if (window.confirm("Are you at the disposal center? This will reset your current load to 0kg.")) {
       try {
-        // ✅ SAVE TO DB
         const res = await axios.put(`${API_BASE_URL}/api/auth/unload-truck/${collectorId}`);
         const now = new Date(res.data.lastUnloadTime);
         setLastUnloadTime(now);
-        
-        // Play a satisfying sound effect
         const audio = new Audio('https://assets.mixkit.co/active_storage/sfx/2003/2003-preview.mp3'); 
         audio.play().catch(e => console.log("Audio blocked"));
-        
         showNotification("✅ Truck Unloaded Successfully");
       } catch (err) {
         alert("Failed to unload truck.");
@@ -196,7 +200,6 @@ const CollectorDashboard = () => {
 
     if (!window.confirm("Confirm collection successful?")) return;
     try {
-      // ✅ UPDATED: Uses API_BASE_URL
       await axios.put(`${API_BASE_URL}/api/requests/complete/${requestId}`);
       alert("✅ Job Completed!");
       fetchAssignments();
@@ -208,7 +211,6 @@ const CollectorDashboard = () => {
   const handleReportIssue = async () => {
     if (!reportModal.requestId) return;
     try {
-      // ✅ UPDATED: Uses API_BASE_URL
       await axios.put(`${API_BASE_URL}/api/requests/report-issue/${reportModal.requestId}`, { 
         reason: issueReason 
       });
