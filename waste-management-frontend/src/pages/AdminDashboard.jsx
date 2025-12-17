@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import axios from "axios";
 import { useNavigate } from "react-router-dom";
+// ✅ Correct Import Path
 import { API_BASE_URL } from '../config';
 import { 
   PieChart, Pie, Cell, Tooltip, Legend, ResponsiveContainer, 
@@ -65,24 +66,17 @@ const AdminDashboard = () => {
   };
 
   // ---------------------------------------------------------
-  // UPDATED FETCH COLLECTORS LOGIC
+  // ✅ FIXED FETCH COLLECTORS LOGIC (Reads from DB Only)
   // ---------------------------------------------------------
   const fetchCollectors = async () => {
     try {
       const res = await axios.get(`${API_BASE_URL}/api/auth/collectors`);
       
       const syncedCollectors = res.data.map(c => {
-        const id = c._id || c.id;
-
-        // 1. Get Status (online, offline, leave)
-        const status1 = localStorage.getItem(`status_${c._id}`);
-        const status2 = localStorage.getItem(`status_${c.id}`);
-        const currentStatus = status1 || status2 || 'offline';
-
-        // 2. Get Leave Date
-        const date1 = localStorage.getItem(`leaveDate_${c._id}`);
-        const date2 = localStorage.getItem(`leaveDate_${c.id}`);
-        const returnDate = date1 || date2 || null;
+        // ✅ FIX: Read status directly from Database (c.collectorStatus)
+        // If the database field is missing, default to 'offline'
+        const currentStatus = c.collectorStatus || 'offline';
+        const returnDate = c.leaveDate || null;
 
         return {
           ...c,
