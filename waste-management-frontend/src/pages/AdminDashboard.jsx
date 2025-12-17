@@ -73,8 +73,10 @@ const AdminDashboard = () => {
       const res = await axios.get(`${API_BASE_URL}/api/auth/collectors`);
       
       const syncedCollectors = res.data.map(c => {
-        // ✅ FIX: Read status directly from Database (c.collectorStatus)
-        // If the database field is missing, default to 'offline'
+        // 🛑 REMOVED: localStorage logic (This was the bug!)
+        
+        // ✅ NEW LOGIC: Use the status directly from the Database response
+        // If the database field is missing/undefined, default to 'offline'
         const currentStatus = c.collectorStatus || 'offline';
         const returnDate = c.leaveDate || null;
 
