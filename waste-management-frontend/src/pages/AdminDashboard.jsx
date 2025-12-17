@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import axios from "axios";
 import { useNavigate } from "react-router-dom";
+import { API_BASE_URL } from '../config';
 import { 
   PieChart, Pie, Cell, Tooltip, Legend, ResponsiveContainer, 
   AreaChart, Area, XAxis, YAxis, CartesianGrid, BarChart, Bar 
@@ -8,7 +9,7 @@ import {
 import { 
   LayoutDashboard, Trash2, Map, BarChart3, Users, 
   Bell, Settings, Search, Calendar, Truck, UserCheck, UserX, RefreshCw,
-  CalendarOff // Added CalendarOff icon
+  CalendarOff 
 } from "lucide-react";
 
 const AdminDashboard = () => {
@@ -52,7 +53,8 @@ const AdminDashboard = () => {
 
   const fetchRequests = async () => {
     try {
-      const res = await axios.get('http://localhost:5000/api/requests/all');
+      // ✅ UPDATED: Uses API_BASE_URL
+      const res = await axios.get(`${API_BASE_URL}/api/requests/all`);
       const sorted = res.data.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
       setRequests(sorted);
       calculateStats(sorted);
@@ -67,13 +69,12 @@ const AdminDashboard = () => {
   // ---------------------------------------------------------
   const fetchCollectors = async () => {
     try {
-      const res = await axios.get('http://localhost:5000/api/auth/collectors');
+      const res = await axios.get(`${API_BASE_URL}/api/auth/collectors`);
       
       const syncedCollectors = res.data.map(c => {
         const id = c._id || c.id;
 
         // 1. Get Status (online, offline, leave)
-        // We check both ID formats to be safe
         const status1 = localStorage.getItem(`status_${c._id}`);
         const status2 = localStorage.getItem(`status_${c.id}`);
         const currentStatus = status1 || status2 || 'offline';
@@ -85,7 +86,7 @@ const AdminDashboard = () => {
 
         return {
           ...c,
-          currentStatus: currentStatus, // Store the actual string ('online', 'leave', 'offline')
+          currentStatus: currentStatus, 
           returnDate: returnDate
         };
       });
@@ -98,7 +99,8 @@ const AdminDashboard = () => {
 
   const fetchStats = async () => {
     try {
-      const res = await axios.get('http://localhost:5000/api/requests/stats');
+      // ✅ UPDATED: Uses API_BASE_URL
+      const res = await axios.get(`${API_BASE_URL}/api/requests/stats`);
       setChartData(res.data);
     } catch (err) {
       console.error("Error fetching stats:", err);
@@ -150,7 +152,8 @@ const AdminDashboard = () => {
     }
 
     try {
-      await axios.put(`http://localhost:5000/api/requests/assign/${requestId}`, { collectorId });
+      // ✅ UPDATED: Uses API_BASE_URL
+      await axios.put(`${API_BASE_URL}/api/requests/assign/${requestId}`, { collectorId });
       alert("Collector Assigned!");
       fetchRequests();
     } catch (err) {
@@ -161,7 +164,8 @@ const AdminDashboard = () => {
   const handleReject = async (requestId) => {
     if (!window.confirm("Reject this request?")) return;
     try {
-      await axios.put(`http://localhost:5000/api/requests/reject/${requestId}`);
+      // ✅ UPDATED: Uses API_BASE_URL
+      await axios.put(`${API_BASE_URL}/api/requests/reject/${requestId}`);
       alert("Request Rejected");
       fetchRequests();
     } catch (err) {

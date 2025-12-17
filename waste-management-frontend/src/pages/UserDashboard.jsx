@@ -1,6 +1,9 @@
 import { useState, useEffect, useRef } from "react";
 import axios from "axios";
 import { useNavigate } from "react-router-dom";
+// ✅ Correct Import Path
+import { API_BASE_URL } from '../config';
+
 import { 
   Calendar, MapPin, BarChart3, BookOpen, 
   Leaf, Recycle, Mail, MessageCircle, Phone, 
@@ -48,15 +51,15 @@ const UserDashboard = () => {
 
   const fetchData = async () => {
     try {
-      // 1. Fetch Requests
-      const resRequests = await axios.get(`http://localhost:5000/api/requests/user/${userId}`);
+      // ✅ 1. Fetch Requests (UPDATED URL)
+      const resRequests = await axios.get(`${API_BASE_URL}/api/requests/user/${userId}`);
       const requestData = resRequests.data || []; 
       setRequests(requestData);
       calculatePersonalStats(requestData);
 
-      // 2. Fetch Global User Count
+      // ✅ 2. Fetch Global User Count (UPDATED URL)
       try {
-        const resUsers = await axios.get('http://localhost:5000/api/auth/count');
+        const resUsers = await axios.get(`${API_BASE_URL}/api/auth/count`);
         setStats(prev => ({ ...prev, activeUsers: resUsers.data.count || 0 }));
       } catch (e) {
         console.warn("Could not fetch user count");
@@ -93,7 +96,8 @@ const UserDashboard = () => {
     e.preventDefault();
     setLoading(true);
     try {
-      await axios.post('http://localhost:5000/api/requests/create', { ...formData, userId });
+      // ✅ UPDATED URL
+      await axios.post(`${API_BASE_URL}/api/requests/create`, { ...formData, userId });
       alert("Pickup Scheduled Successfully! 🌱");
       setFormData({ wasteType: "Plastic", amount: "", location: "", pickupDate: "" });
       fetchData(); 
@@ -108,7 +112,8 @@ const UserDashboard = () => {
   const handleCancel = async (requestId) => {
     if (!window.confirm("Are you sure you want to cancel this pickup?")) return;
     try {
-      await axios.delete(`http://localhost:5000/api/requests/delete/${requestId}`);
+      // ✅ UPDATED URL
+      await axios.delete(`${API_BASE_URL}/api/requests/delete/${requestId}`);
       alert("✅ Request Cancelled Successfully");
       fetchData(); 
     } catch (err) {
@@ -120,7 +125,8 @@ const UserDashboard = () => {
     const feedback = prompt("Please rate your experience (1-5) or leave a comment:");
     if (!feedback) return;
     try {
-      await axios.put(`http://localhost:5000/api/requests/feedback/${requestId}`, { feedback });
+      // ✅ UPDATED URL
+      await axios.put(`${API_BASE_URL}/api/requests/feedback/${requestId}`, { feedback });
       alert("🌟 Thank you for your feedback!");
       fetchData(); 
     } catch (err) {
@@ -131,7 +137,8 @@ const UserDashboard = () => {
   const handleSendEmail = async (e) => {
     e.preventDefault();
     try {
-      await axios.post('http://localhost:5000/api/auth/support', {
+      // ✅ UPDATED URL
+      await axios.post(`${API_BASE_URL}/api/auth/support`, {
         subject: emailForm.subject,
         message: emailForm.message,
         userId: userId

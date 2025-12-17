@@ -1,6 +1,9 @@
 import { useState } from "react";
 import axios from "axios";
 import { useNavigate } from "react-router-dom";
+// ✅ Correct Import Path
+import { API_BASE_URL } from '../config';
+
 import { Leaf, Mail, Lock, User, MapPin, Loader2, ArrowRight, ShieldCheck } from "lucide-react";
 
 export default function Register() {
@@ -23,16 +26,16 @@ export default function Register() {
     setIsLoading(true);
 
     try {
-      // 1. Register
-      await axios.post('http://localhost:5000/api/auth/register', formData);
+      // ✅ 1. Register with Live API
+      await axios.post(`${API_BASE_URL}/api/auth/register`, formData);
 
-      // 2. Auto-Login
-      const loginRes = await axios.post('http://localhost:5000/api/auth/login', {
+      // ✅ 2. Auto-Login with Live API
+      const loginRes = await axios.post(`${API_BASE_URL}/api/auth/login`, {
         email: formData.email,
         password: formData.password
       });
 
-      // 3. Save Session (✅ FIX: Use sessionStorage for tab isolation)
+      // 3. Save Session
       sessionStorage.setItem('token', loginRes.data.token);
       sessionStorage.setItem('role', loginRes.data.user.role);
       sessionStorage.setItem('userId', loginRes.data.user.id);

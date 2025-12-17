@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import axios from "axios";
 import { Leaf, Mail, Lock, Loader2, ArrowRight } from "lucide-react";
+import { API_BASE_URL } from '../config'; 
 
 export default function Login() {
   const [email, setEmail] = useState("");
@@ -14,10 +15,10 @@ export default function Login() {
     setIsLoading(true);
 
     try {
-      // Real Backend Connection
-      const res = await axios.post('http://localhost:5000/api/auth/login', { email, password });
+      // ✅ UPDATED: Uses API_BASE_URL
+      const res = await axios.post(`${API_BASE_URL}/api/auth/login`, { email, password });
       
-      // This ensures data is specific to THIS tab only.
+      // Store session data
       sessionStorage.setItem('token', res.data.token);
       sessionStorage.setItem('role', res.data.user.role);
       sessionStorage.setItem('userId', res.data.user.id);

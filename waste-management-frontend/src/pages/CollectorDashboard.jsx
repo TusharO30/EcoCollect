@@ -46,19 +46,24 @@ const CollectorDashboard = () => {
     if (!collectorId) {
       navigate('/');
     } else {
-      // Load saved status, leave date, and unload time
-      const savedStatus = localStorage.getItem(`status_${collectorId}`);
-      const savedLeaveDate = localStorage.getItem(`leaveDate_${collectorId}`);
-      const savedUnloadTime = localStorage.getItem(`lastUnloadTime_${collectorId}`);
+      const fetchProfile = async () => {
+        try {
+          const res = await axios.get(`${API_BASE_URL}/api/auth/get-user/${collectorId}`);
+          const data = res.data;
+          
+          if (data.collectorStatus) setCollectorStatus(data.collectorStatus);
+          if (data.leaveDate) setLeaveDate(data.leaveDate);
+          if (data.lastUnloadTime) setLastUnloadTime(new Date(data.lastUnloadTime));
+        } catch (err) {
+          console.error("Error loading profile", err);
+        }
+      };
       
-      if (savedStatus) setCollectorStatus(savedStatus);
-      if (savedLeaveDate) setLeaveDate(savedLeaveDate);
-      if (savedUnloadTime) setLastUnloadTime(new Date(savedUnloadTime));
-
+      fetchProfile();
       fetchAssignments();
 
       const interval = setInterval(() => {
-        if (savedStatus === 'online') fetchAssignments(true);
+        if (collectorStatus === 'online') fetchAssignments(true);
       }, 5000);
 
       return () => clearInterval(interval);
@@ -70,11 +75,12 @@ const CollectorDashboard = () => {
     if (allAssignments.length > 0) {
       calculateStats(allAssignments);
     }
-  }, [lastUnloadTime]);
+  }, [lastUnloadTime, allAssignments]); // Added dependency
 
   const fetchAssignments = async (isBackgroundUpdate = false) => {
     try {
-      const res = await axios.get('http://localhost:5000/api/requests/all');
+      // ✅ UPDATED: Uses API_BASE_URL
+      const res = await axios.get(`${API_BASE_URL}/api/requests/all`);
       
       const myJobs = res.data.filter(req => {
         const assignedId = req.assignedCollectorId?._id || req.assignedCollectorId;
@@ -133,39 +139,52 @@ const CollectorDashboard = () => {
       completedToday: today.length,
       totalWeight: totalLifetimeWeight,
       earnings: totalLifetimeWeight * 0.5,
-      // Clamp load at max to prevent UI breaking, though logic handles reset
+      // Clamp load at max to prevent UI breaking
       truckLoad: currentTruckLoad > 500 ? 500 : currentTruckLoad 
     }));
   };
 
   // --- ACTIONS ---
   
-  const updateStatus = (newStatus, date = "") => {
+  const updateStatus = async (newStatus, date = "") => {
+    // Optimistic Update
     setCollectorStatus(newStatus);
     setLeaveDate(date);
-    localStorage.setItem(`status_${collectorId}`, newStatus);
-    if(date) localStorage.setItem(`leaveDate_${collectorId}`, date);
-    else localStorage.removeItem(`leaveDate_${collectorId}`);
     setStatusModal(false);
+
+    // ✅ SAVE TO DB
+    try {
+      await axios.put(`${API_BASE_URL}/api/auth/update-status/${collectorId}`, {
+        status: newStatus,
+        leaveDate: date
+      });
+    } catch (err) {
+      console.error("Failed to sync status");
+    }
   };
 
   // NEW: Handle Unload Action
-  const handleUnload = () => {
+  const handleUnload = async () => {
     if (stats.truckLoad <= 0) {
       alert("Truck is already empty!");
       return;
     }
     
     if (window.confirm("Are you at the disposal center? This will reset your current load to 0kg.")) {
-      const now = new Date();
-      setLastUnloadTime(now);
-      localStorage.setItem(`lastUnloadTime_${collectorId}`, now.toISOString());
-      
-      // Play a satisfying sound effect
-      const audio = new Audio('https://assets.mixkit.co/active_storage/sfx/2003/2003-preview.mp3'); // Heavy door shut sound
-      audio.play().catch(e => console.log("Audio blocked"));
-      
-      showNotification("✅ Truck Unloaded Successfully");
+      try {
+        // ✅ SAVE TO DB
+        const res = await axios.put(`${API_BASE_URL}/api/auth/unload-truck/${collectorId}`);
+        const now = new Date(res.data.lastUnloadTime);
+        setLastUnloadTime(now);
+        
+        // Play a satisfying sound effect
+        const audio = new Audio('https://assets.mixkit.co/active_storage/sfx/2003/2003-preview.mp3'); 
+        audio.play().catch(e => console.log("Audio blocked"));
+        
+        showNotification("✅ Truck Unloaded Successfully");
+      } catch (err) {
+        alert("Failed to unload truck.");
+      }
     }
   };
 
@@ -177,7 +196,8 @@ const CollectorDashboard = () => {
 
     if (!window.confirm("Confirm collection successful?")) return;
     try {
-      await axios.put(`http://localhost:5000/api/requests/complete/${requestId}`);
+      // ✅ UPDATED: Uses API_BASE_URL
+      await axios.put(`${API_BASE_URL}/api/requests/complete/${requestId}`);
       alert("✅ Job Completed!");
       fetchAssignments();
     } catch (err) {
@@ -188,7 +208,8 @@ const CollectorDashboard = () => {
   const handleReportIssue = async () => {
     if (!reportModal.requestId) return;
     try {
-      await axios.put(`http://localhost:5000/api/requests/report-issue/${reportModal.requestId}`, { 
+      // ✅ UPDATED: Uses API_BASE_URL
+      await axios.put(`${API_BASE_URL}/api/requests/report-issue/${reportModal.requestId}`, { 
         reason: issueReason 
       });
       alert("⚠️ Issue Reported Successfully.");
@@ -500,8 +521,8 @@ const CollectorDashboard = () => {
                         value={leaveDate}
                         onChange={(e) => {
                           setLeaveDate(e.target.value);
-                          localStorage.setItem(`leaveDate_${collectorId}`, e.target.value);
                         }}
+                        onBlur={() => updateStatus('leave', leaveDate)}
                         style={{ width: "100%", padding: "10px", borderRadius: "8px", border: "1px solid #fcd34d", outline: "none", fontSize: "14px", color: "#78350f" }}
                       />
                    </div>

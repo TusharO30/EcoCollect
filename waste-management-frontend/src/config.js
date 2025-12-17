@@ -1,7 +1,6 @@
 // src/config.js
 // Change this boolean to 'true' when you deploy!
-const IS_LIVE = false;
-
-export const API_BASE_URL = IS_LIVE 
-  ? "https://your-backend-name.onrender.com" // You will get this URL in Phase 2
+const var1  = true;
+export const API_BASE_URL = var1
+  ? "https://ecocollect-o1go.onrender.com" 
   : "http://localhost:5000";
