@@ -71,7 +71,7 @@ const AdminDashboard = () => {
   const fetchCollectors = async () => {
     try {
       const res = await axios.get(`${API_BASE_URL}/api/auth/collectors`);
-      
+      console.log("SERVER DATA:", res.data);
       const syncedCollectors = res.data.map(c => {
         // 🛑 REMOVED: localStorage logic (This was the bug!)
         

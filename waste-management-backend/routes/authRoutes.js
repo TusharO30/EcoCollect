@@ -5,7 +5,7 @@ const jwt = require('jsonwebtoken');
 const User = require('../models/User');
 const nodemailer = require('nodemailer'); 
 
-// REGISTER 
+// 1. REGISTER 
 router.post('/register', async (req, res) => {
   try {
     const { name, email, password, role, location } = req.body;
@@ -30,7 +30,7 @@ router.post('/register', async (req, res) => {
   }
 });
 
-// LOGIN (Sign In)
+// 2. LOGIN (Sign In)
 router.post('/login', async (req, res) => {
   try {
     const { email, password } = req.body;
@@ -57,7 +57,7 @@ router.post('/login', async (req, res) => {
   }
 });
 
-// GET COLLECTORS
+// 3. GET COLLECTORS (For Admin Dashboard)
 router.get('/collectors', async (req, res) => {
   try {
     const collectors = await User.find({ role: 'collector' });
@@ -67,7 +67,18 @@ router.get('/collectors', async (req, res) => {
   }
 });
 
-// GET USER COUNT
+// 4. GET USER PROFILE (Needed for Dashboard Persistence)
+router.get('/get-user/:id', async (req, res) => {
+  try {
+    const user = await User.findById(req.params.id).select('-password'); // Exclude password
+    if (!user) return res.status(404).json({ message: "User not found" });
+    res.json(user);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// 5. GET USER COUNT
 router.get('/count', async (req, res) => {
   try {
     const count = await User.countDocuments({ role: 'user' });
@@ -77,7 +88,41 @@ router.get('/count', async (req, res) => {
   }
 });
 
-//NEW: SUPPORT EMAIL  
+// 👇 MISSING ROUTE 1: UPDATE STATUS (For Collector Dashboard) 👇
+router.put('/update-status/:id', async (req, res) => {
+  try {
+    const { status, leaveDate } = req.body;
+    
+    // Updates the collectorStatus field in MongoDB
+    const updatedUser = await User.findByIdAndUpdate(
+      req.params.id, 
+      { collectorStatus: status, leaveDate: leaveDate }, 
+      { new: true } // Return the updated document
+    );
+    
+    res.json(updatedUser);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// 👇 MISSING ROUTE 2: UNLOAD TRUCK (For Collector Dashboard) 👇
+router.put('/unload-truck/:id', async (req, res) => {
+  try {
+    // Updates the lastUnloadTime
+    const updatedUser = await User.findByIdAndUpdate(
+      req.params.id,
+      { lastUnloadTime: new Date() },
+      { new: true }
+    );
+    
+    res.json(updatedUser);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// 6. SUPPORT EMAIL  
 router.post('/support', async (req, res) => {
   try {
     const { subject, message, userId } = req.body;
@@ -105,10 +150,8 @@ router.post('/support', async (req, res) => {
       `
     };
 
-    // 3. Send the Email
     await transporter.sendMail(mailOptions);
-
-    console.log("Email sent successfully to user12emails@gmail.com");
+    console.log("Email sent successfully");
     res.json({ message: "Email sent successfully!" });
 
   } catch (err) {

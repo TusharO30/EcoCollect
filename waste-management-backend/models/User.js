@@ -9,7 +9,13 @@ const UserSchema = new mongoose.Schema({
     enum: ['user', 'admin', 'collector'], 
     default: 'user' 
   },
-  location: { type: String } 
-});
+  location: { type: String },
+
+  // 👇 NEW FIELDS ADDED HERE 👇
+  collectorStatus: { type: String, default: 'offline' }, // Stores 'online', 'offline', or 'leave'
+  leaveDate: { type: Date, default: null },              // Stores return date if on leave
+  lastUnloadTime: { type: Date, default: null }          // Tracks when they last emptied truck
+  // 👆 END OF NEW FIELDS 👆
+}, { timestamps: true }); // Added timestamps (optional, but good for tracking)
 
 module.exports = mongoose.model('User', UserSchema);
